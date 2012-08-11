@@ -1,3 +1,4 @@
+#[deny(non_camel_case_types)];
 /// Additional general-purpose comparison functionality.
 
 const fuzzy_epsilon: float = 1.0e-6;
