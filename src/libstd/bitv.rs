@@ -1,16 +1,21 @@
+#[deny(non_camel_case_types)];
 import vec::{to_mut, from_elem};
 
-export bitv;
+export Bitv;
 export union;
+export Union;
 export intersect;
+export Intersect;
 export assign;
+export Assign;
+export difference;
+export Difference;
 export clone;
 export get;
 export equal;
 export clear;
 export set_all;
 export invert;
-export difference;
 export set;
 export is_true;
 export is_false;
@@ -19,7 +24,7 @@ export to_str;
 export eq_vec;
 export methods;
 
-class small_bitv {
+class SmallBitv {
     let mut bits: u32;
     new(bits: u32) { self.bits = bits; }
     priv {
@@ -32,21 +37,21 @@ class small_bitv {
         }
     }
     #[inline(always)]
-    fn union(s: &small_bitv) -> bool {
+    fn union(s: &SmallBitv) -> bool {
         self.bits_op(s.bits, |u1, u2| { u1 | u2 })
     }
     #[inline(always)]
-    fn intersect(s: &small_bitv) -> bool {
+    fn intersect(s: &SmallBitv) -> bool {
         self.bits_op(s.bits, |u1, u2| { u1 & u2 })
     }
     #[inline(always)]
-    fn become(s: &small_bitv) -> bool {
+    fn become(s: &SmallBitv) -> bool {
         let old = self.bits;
         self.bits = s.bits;
         old != self.bits
     }
     #[inline(always)]
-    fn difference(s: &small_bitv) -> bool {
+    fn difference(s: &SmallBitv) -> bool {
         let old = self.bits;
         self.bits &= !s.bits;
         old != self.bits
@@ -65,7 +70,7 @@ class small_bitv {
         }
     }
     #[inline(always)]
-    fn equals(b: &small_bitv) -> bool { self.bits == b.bits }
+    fn equals(b: &SmallBitv) -> bool { self.bits == b.bits }
     #[inline(always)]
     fn clear() { self.bits = 0; }
     #[inline(always)]
@@ -78,7 +83,7 @@ class small_bitv {
     fn invert() { self.bits = !self.bits; }
 }
 
-class big_bitv {
+class BigBitv {
 // only mut b/c of clone and lack of other constructor
     let mut storage: ~[mut uint];
     new(-storage: ~[mut uint]) {
@@ -86,7 +91,7 @@ class big_bitv {
     }
     priv {
         #[inline(always)]
-        fn process(b: &big_bitv, op: fn(uint, uint) -> uint) -> bool {
+        fn process(b: &BigBitv, op: fn(uint, uint) -> uint) -> bool {
             let len = b.storage.len();
             assert (self.storage.len() == len);
             let mut changed = false;
@@ -112,13 +117,13 @@ class big_bitv {
     #[inline(always)]
     fn invert() { for self.each_storage() |w| { w = !w } }
     #[inline(always)]
-    fn union(b: &big_bitv)     -> bool { self.process(b, lor) }
+    fn union(b: &BigBitv)     -> bool { self.process(b, lor) }
     #[inline(always)]
-    fn intersect(b: &big_bitv) -> bool { self.process(b, land) }
+    fn intersect(b: &BigBitv) -> bool { self.process(b, land) }
     #[inline(always)]
-    fn become(b: &big_bitv)    -> bool { self.process(b, right) }
+    fn become(b: &BigBitv)    -> bool { self.process(b, right) }
     #[inline(always)]
-    fn difference(b: &big_bitv) -> bool {
+    fn difference(b: &BigBitv) -> bool {
         self.invert();
         let b = self.intersect(b);
         self.invert();
@@ -140,7 +145,7 @@ class big_bitv {
                  else { self.storage[w] & !flag };
     }
     #[inline(always)]
-    fn equals(b: &big_bitv) -> bool {
+    fn equals(b: &BigBitv) -> bool {
         let len = b.storage.len();
         for uint::iterate(0, len) |i| {
             if self.storage[i] != b.storage[i] { return false; }
@@ -148,24 +153,24 @@ class big_bitv {
     }
 }
 
-enum a_bitv { big(~big_bitv), small(~small_bitv) }
+enum BitvVariant { Big(~BigBitv), Small(~SmallBitv) }
 
-enum op {union, intersect, assign, difference}
+enum Op {Union, Intersect, Assign, Difference}
 
 // The bitvector type
-class bitv {
-    let rep: a_bitv;
+class Bitv {
+    let rep: BitvVariant;
     let nbits: uint;
 
     new(nbits: uint, init: bool) {
         self.nbits = nbits;
         if nbits <= 32 {
-          self.rep = small(~small_bitv(if init {!0} else {0}));
+          self.rep = Small(~SmallBitv(if init {!0} else {0}));
         }
         else {
           let s = to_mut(from_elem(nbits / uint_bits + 1,
                                         if init {!0} else {0}));
-          self.rep = big(~big_bitv(s));
+          self.rep = Big(~BigBitv(s));
         };
     }
 
@@ -175,27 +180,27 @@ class bitv {
                   different sizes";
         }
         #[inline(always)]
-        fn do_op(op: op, other: &bitv) -> bool {
+        fn do_op(op: Op, other: &Bitv) -> bool {
             if self.nbits != other.nbits {
                 self.die();
             }
             match self.rep {
-              small(s) => match other.rep {
-                small(s1) => match op {
-                  union      => s.union(s1),
-                  intersect  => s.intersect(s1),
-                  assign     => s.become(s1),
-                  difference => s.difference(s1)
+              Small(s) => match other.rep {
+                Small(s1) => match op {
+                  Union      => s.union(s1),
+                  Intersect  => s.intersect(s1),
+                  Assign     => s.become(s1),
+                  Difference => s.difference(s1)
                 },
-                big(s1) => self.die()
+                Big(s1) => self.die()
               },
-              big(s) => match other.rep {
-                small(_) => self.die(),
-                big(s1) => match op {
-                  union      => s.union(s1),
-                  intersect  => s.intersect(s1),
-                  assign     => s.become(s1),
-                  difference => s.difference(s1)
+              Big(s) => match other.rep {
+                Small(_) => self.die(),
+                Big(s1) => match op {
+                  Union      => s.union(s1),
+                  Intersect  => s.intersect(s1),
+                  Assign     => s.become(s1),
+                  Difference => s.difference(s1)
                 }
               }
             }
@@ -209,7 +214,7 @@ class bitv {
  * the same length. Returns 'true' if `self` changed.
 */
     #[inline(always)]
-    fn union(v1: &bitv) -> bool { self.do_op(union, v1) }
+    fn union(v1: &Bitv) -> bool { self.do_op(Union, v1) }
 
 /**
  * Calculates the intersection of two bitvectors
@@ -218,7 +223,7 @@ class bitv {
  * the same length. Returns 'true' if `self` changed.
 */
     #[inline(always)]
-    fn intersect(v1: &bitv) -> bool { self.do_op(intersect, v1) }
+    fn intersect(v1: &Bitv) -> bool { self.do_op(Intersect, v1) }
 
 /**
  * Assigns the value of `v1` to `self`
@@ -227,20 +232,20 @@ class bitv {
  * changed
  */
     #[inline(always)]
-    fn assign(v: &bitv) -> bool { self.do_op(assign, v) }
+    fn assign(v: &Bitv) -> bool { self.do_op(Assign, v) }
 
     /// Makes a copy of a bitvector
     #[inline(always)]
-    fn clone() -> ~bitv {
+    fn clone() -> ~Bitv {
         ~match self.rep {
-          small(b) => {
-            bitv{nbits: self.nbits, rep: small(~small_bitv{bits: b.bits})}
+          Small(b) => {
+            Bitv{nbits: self.nbits, rep: Small(~SmallBitv{bits: b.bits})}
           }
-          big(b) => {
+          Big(b) => {
             let st = to_mut(from_elem(self.nbits / uint_bits + 1, 0));
             let len = st.len();
             for uint::range(0, len) |i| { st[i] = b.storage[i]; };
-            bitv{nbits: self.nbits, rep: big(~big_bitv{storage: st})}
+            Bitv{nbits: self.nbits, rep: Big(~BigBitv{storage: st})}
           }
         }
     }
@@ -250,8 +255,8 @@ class bitv {
     pure fn get(i: uint) -> bool {
        assert (i < self.nbits);
        match self.rep {
-         big(b)   => b.get(i),
-         small(s) => s.get(i)
+         Big(b)   => b.get(i),
+         Small(s) => s.get(i)
        }
     }
 
@@ -264,8 +269,8 @@ class bitv {
     fn set(i: uint, x: bool) {
       assert (i < self.nbits);
       match self.rep {
-        big(b)   => b.set(i, x),
-        small(s) => s.set(i, x)
+        Big(b)   => b.set(i, x),
+        Small(s) => s.set(i, x)
       }
     }
 
@@ -276,16 +281,16 @@ class bitv {
  * contain identical elements.
  */
     #[inline(always)]
-    fn equal(v1: bitv) -> bool {
+    fn equal(v1: Bitv) -> bool {
       if self.nbits != v1.nbits { return false; }
       match self.rep {
-        small(b) => match v1.rep {
-          small(b1) => b.equals(b1),
+        Small(b) => match v1.rep {
+          Small(b1) => b.equals(b1),
           _ => false
         },
-        big(s) => match v1.rep {
-          big(s1) => s.equals(s1),
-          small(_) => return false
+        Big(s) => match v1.rep {
+          Big(s1) => s.equals(s1),
+          Small(_) => return false
         }
       }
     }
@@ -294,8 +299,8 @@ class bitv {
     #[inline(always)]
     fn clear() {
         match self.rep {
-          small(b) => b.clear(),
-          big(s) => for s.each_storage() |w| { w = 0u }
+          Small(b) => b.clear(),
+          Big(s) => for s.each_storage() |w| { w = 0u }
         }
     }
 
@@ -303,16 +308,16 @@ class bitv {
     #[inline(always)]
     fn set_all() {
       match self.rep {
-        small(b) => b.set_all(),
-        big(s) => for s.each_storage() |w| { w = !0u } }
+        Small(b) => b.set_all(),
+        Big(s) => for s.each_storage() |w| { w = !0u } }
     }
 
     /// Invert all bits
     #[inline(always)]
     fn invert() {
       match self.rep {
-        small(b) => b.invert(),
-        big(s) => for s.each_storage() |w| { w = !w } }
+        Small(b) => b.invert(),
+        Big(s) => for s.each_storage() |w| { w = !w } }
     }
 
 /**
@@ -324,13 +329,13 @@ class bitv {
  * Returns `true` if `v0` was changed.
  */
    #[inline(always)]
-    fn difference(v: ~bitv) -> bool { self.do_op(difference, v) }
+    fn difference(v: ~Bitv) -> bool { self.do_op(Difference, v) }
 
         /// Returns true if all bits are 1
     #[inline(always)]
     fn is_true() -> bool {
       match self.rep {
-        small(b) => b.is_true(),
+        Small(b) => b.is_true(),
         _ => {
           for self.each() |i| { if !i { return false; } }
           true
@@ -351,8 +356,8 @@ class bitv {
 
     fn is_false() -> bool {
       match self.rep {
-        small(b) => b.is_false(),
-        big(_) => {
+        Small(b) => b.is_false(),
+        Big(_) => {
           for self.each() |i| { if i { return false; } }
           true
         }
@@ -421,7 +426,7 @@ pure fn land(w0: uint, w1: uint) -> uint { return w0 & w1; }
 
 pure fn right(_w0: uint, w1: uint) -> uint { return w1; }
 
-impl bitv: ops::index<uint,bool> {
+impl Bitv: ops::index<uint,bool> {
     pure fn index(&&i: uint) -> bool {
         self.get(i)
     }
@@ -431,10 +436,10 @@ impl bitv: ops::index<uint,bool> {
 mod tests {
     #[test]
     fn test_to_str() {
-        let zerolen = bitv(0u, false);
+        let zerolen = Bitv(0u, false);
         assert zerolen.to_str() == ~"";
 
-        let eightbits = bitv(8u, false);
+        let eightbits = Bitv(8u, false);
         assert eightbits.to_str() == ~"00000000";
     }
 
@@ -442,7 +447,7 @@ mod tests {
     fn test_0_elements() {
         let mut act;
         let mut exp;
-        act = bitv(0u, false);
+        act = Bitv(0u, false);
         exp = vec::from_elem::<uint>(0u, 0u);
         assert act.eq_vec(exp);
     }
@@ -450,9 +455,9 @@ mod tests {
     #[test]
     fn test_1_element() {
         let mut act;
-        act = bitv(1u, false);
+        act = Bitv(1u, false);
         assert act.eq_vec(~[0u]);
-        act = bitv(1u, true);
+        act = Bitv(1u, true);
         assert act.eq_vec(~[1u]);
     }
 
@@ -461,15 +466,15 @@ mod tests {
         let mut act;
         // all 0
 
-        act = bitv(10u, false);
+        act = Bitv(10u, false);
         assert (act.eq_vec(~[0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u]));
         // all 1
 
-        act = bitv(10u, true);
+        act = Bitv(10u, true);
         assert (act.eq_vec(~[1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u]));
         // mixed
 
-        act = bitv(10u, false);
+        act = Bitv(10u, false);
         act.set(0u, true);
         act.set(1u, true);
         act.set(2u, true);
@@ -478,7 +483,7 @@ mod tests {
         assert (act.eq_vec(~[1u, 1u, 1u, 1u, 1u, 0u, 0u, 0u, 0u, 0u]));
         // mixed
 
-        act = bitv(10u, false);
+        act = Bitv(10u, false);
         act.set(5u, true);
         act.set(6u, true);
         act.set(7u, true);
@@ -487,7 +492,7 @@ mod tests {
         assert (act.eq_vec(~[0u, 0u, 0u, 0u, 0u, 1u, 1u, 1u, 1u, 1u]));
         // mixed
 
-        act = bitv(10u, false);
+        act = Bitv(10u, false);
         act.set(0u, true);
         act.set(3u, true);
         act.set(6u, true);
@@ -500,21 +505,21 @@ mod tests {
         let mut act;
         // all 0
 
-        act = bitv(31u, false);
+        act = Bitv(31u, false);
         assert (act.eq_vec(
                        ~[0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u,
                         0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u,
                         0u, 0u, 0u, 0u, 0u]));
         // all 1
 
-        act = bitv(31u, true);
+        act = Bitv(31u, true);
         assert (act.eq_vec(
                        ~[1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u,
                         1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u,
                         1u, 1u, 1u, 1u, 1u]));
         // mixed
 
-        act = bitv(31u, false);
+        act = Bitv(31u, false);
         act.set(0u, true);
         act.set(1u, true);
         act.set(2u, true);
@@ -529,7 +534,7 @@ mod tests {
                         0u, 0u, 0u, 0u, 0u]));
         // mixed
 
-        act = bitv(31u, false);
+        act = Bitv(31u, false);
         act.set(16u, true);
         act.set(17u, true);
         act.set(18u, true);
@@ -544,7 +549,7 @@ mod tests {
                         0u, 0u, 0u, 0u, 0u]));
         // mixed
 
-        act = bitv(31u, false);
+        act = Bitv(31u, false);
         act.set(24u, true);
         act.set(25u, true);
         act.set(26u, true);
@@ -558,7 +563,7 @@ mod tests {
                         1u, 1u, 1u, 1u, 1u]));
         // mixed
 
-        act = bitv(31u, false);
+        act = Bitv(31u, false);
         act.set(3u, true);
         act.set(17u, true);
         act.set(30u, true);
@@ -573,21 +578,21 @@ mod tests {
         let mut act;
         // all 0
 
-        act = bitv(32u, false);
+        act = Bitv(32u, false);
         assert (act.eq_vec(
                        ~[0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u,
                         0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u,
                         0u, 0u, 0u, 0u, 0u, 0u]));
         // all 1
 
-        act = bitv(32u, true);
+        act = Bitv(32u, true);
         assert (act.eq_vec(
                        ~[1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u,
                         1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u,
                         1u, 1u, 1u, 1u, 1u, 1u]));
         // mixed
 
-        act = bitv(32u, false);
+        act = Bitv(32u, false);
         act.set(0u, true);
         act.set(1u, true);
         act.set(2u, true);
@@ -602,7 +607,7 @@ mod tests {
                         0u, 0u, 0u, 0u, 0u, 0u]));
         // mixed
 
-        act = bitv(32u, false);
+        act = Bitv(32u, false);
         act.set(16u, true);
         act.set(17u, true);
         act.set(18u, true);
@@ -617,7 +622,7 @@ mod tests {
                         0u, 0u, 0u, 0u, 0u, 0u]));
         // mixed
 
-        act = bitv(32u, false);
+        act = Bitv(32u, false);
         act.set(24u, true);
         act.set(25u, true);
         act.set(26u, true);
@@ -632,7 +637,7 @@ mod tests {
                         1u, 1u, 1u, 1u, 1u, 1u]));
         // mixed
 
-        act = bitv(32u, false);
+        act = Bitv(32u, false);
         act.set(3u, true);
         act.set(17u, true);
         act.set(30u, true);
@@ -648,21 +653,21 @@ mod tests {
         let mut act;
         // all 0
 
-        act = bitv(33u, false);
+        act = Bitv(33u, false);
         assert (act.eq_vec(
                        ~[0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u,
                         0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u,
                         0u, 0u, 0u, 0u, 0u, 0u, 0u]));
         // all 1
 
-        act = bitv(33u, true);
+        act = Bitv(33u, true);
         assert (act.eq_vec(
                        ~[1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u,
                         1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u, 1u,
                         1u, 1u, 1u, 1u, 1u, 1u, 1u]));
         // mixed
 
-        act = bitv(33u, false);
+        act = Bitv(33u, false);
         act.set(0u, true);
         act.set(1u, true);
         act.set(2u, true);
@@ -677,7 +682,7 @@ mod tests {
                         0u, 0u, 0u, 0u, 0u, 0u, 0u]));
         // mixed
 
-        act = bitv(33u, false);
+        act = Bitv(33u, false);
         act.set(16u, true);
         act.set(17u, true);
         act.set(18u, true);
@@ -692,7 +697,7 @@ mod tests {
                         0u, 0u, 0u, 0u, 0u, 0u, 0u]));
         // mixed
 
-        act = bitv(33u, false);
+        act = Bitv(33u, false);
         act.set(24u, true);
         act.set(25u, true);
         act.set(26u, true);
@@ -707,7 +712,7 @@ mod tests {
                         1u, 1u, 1u, 1u, 1u, 1u, 0u]));
         // mixed
 
-        act = bitv(33u, false);
+        act = Bitv(33u, false);
         act.set(3u, true);
         act.set(17u, true);
         act.set(30u, true);
@@ -721,15 +726,15 @@ mod tests {
 
     #[test]
     fn test_equal_differing_sizes() {
-        let v0 = bitv(10u, false);
-        let v1 = bitv(11u, false);
+        let v0 = Bitv(10u, false);
+        let v1 = Bitv(11u, false);
         assert !v0.equal(v1);
     }
 
     #[test]
     fn test_equal_greatly_differing_sizes() {
-        let v0 = bitv(10u, false);
-        let v1 = bitv(110u, false);
+        let v0 = Bitv(10u, false);
+        let v1 = Bitv(110u, false);
         assert !v0.equal(v1);
     }
 }

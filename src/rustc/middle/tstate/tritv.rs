@@ -20,14 +20,14 @@ enum trit { ttrue, tfalse, dont_care, }
 class t {
     // Shouldn't be mut; instead we should have a different
     // constructor that takes two bitvs
-    let mut uncertain: bitv;
-    let mut val: bitv;
+    let mut uncertain: Bitv;
+    let mut val: Bitv;
     let nbits: uint;
     // next two should be private (#2297)
-    fn set_uncertain(-b: bitv) {
+    fn set_uncertain(-b: Bitv) {
         self.uncertain <- b;
     }
-    fn set_val(-b: bitv) {
+    fn set_val(-b: Bitv) {
         self.val <- b;
     }
     fn clone() -> t {
