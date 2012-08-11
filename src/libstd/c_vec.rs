@@ -40,7 +40,7 @@ export ptr;
  * truly opaque types, this should be revisited.
  */
 enum CVec<T> {
-    CVec_({ base: *mut T, len: uint, rsrc: @DtorRes})
+    CVecCtor({ base: *mut T, len: uint, rsrc: @DtorRes})
 }
 
 class DtorRes {
@@ -67,7 +67,7 @@ class DtorRes {
  * * len - The number of elements in the buffer
  */
 unsafe fn c_vec<T>(base: *mut T, len: uint) -> CVec<T> {
-    return CVec_({
+    return CVecCtor({
         base: base,
         len: len,
         rsrc: @DtorRes(option::none)
@@ -87,7 +87,7 @@ unsafe fn c_vec<T>(base: *mut T, len: uint) -> CVec<T> {
  */
 unsafe fn c_vec_with_dtor<T>(base: *mut T, len: uint, dtor: fn@())
   -> CVec<T> {
-    return CVec_({
+    return CVecCtor({
         base: base,
         len: len,
         rsrc: @DtorRes(option::some(dtor))
