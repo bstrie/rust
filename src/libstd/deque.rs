@@ -1,9 +1,11 @@
+#[deny(non_camel_case_types)];
+
 //! A deque. Untested as of yet. Likely buggy
 
 import option::{some, none};
 import dvec::{DVec, dvec};
 
-trait t<T> {
+trait Deque<T> {
     fn size() -> uint;
     fn add_front(T);
     fn add_back(T);
@@ -17,15 +19,15 @@ trait t<T> {
 // FIXME (#2343) eventually, a proper datatype plus an exported impl would
 // be preferrable.
 fn create<T: copy>() -> t<T> {
-    type cell<T> = option<T>;
+    type Cell<T> = option<T>;
 
     let initial_capacity: uint = 32u; // 2^5
      /**
       * Grow is only called on full elts, so nelts is also len(elts), unlike
       * elsewhere.
       */
-    fn grow<T: copy>(nelts: uint, lo: uint, -elts: ~[mut cell<T>]) ->
-       ~[mut cell<T>] {
+    fn grow<T: copy>(nelts: uint, lo: uint, -elts: ~[mut Cell<T>]) ->
+       ~[mut Cell<T>] {
         assert (nelts == vec::len(elts));
         let mut rv = ~[mut];
 
@@ -40,16 +42,16 @@ fn create<T: copy>() -> t<T> {
 
         return rv;
     }
-    fn get<T: copy>(elts: DVec<cell<T>>, i: uint) -> T {
+    fn get<T: copy>(elts: DVec<Cell<T>>, i: uint) -> T {
         match elts.get_elt(i) { some(t) => t, _ => fail }
     }
 
-    type repr<T> = {mut nelts: uint,
+    type Repr<T> = {mut nelts: uint,
                     mut lo: uint,
                     mut hi: uint,
-                    elts: DVec<cell<T>>};
+                    elts: DVec<Cell<T>>};
 
-    impl <T: copy> repr<T>: t<T> {
+    impl <T: copy> Repr<T>: Deque<T> {
         fn size() -> uint { return self.nelts; }
         fn add_front(t: T) {
             let oldlo: uint = self.lo;
@@ -102,7 +104,7 @@ fn create<T: copy>() -> t<T> {
         }
     }
 
-    let repr: repr<T> = {
+    let repr: Repr<T> = {
         mut nelts: 0u,
         mut lo: 0u,
         mut hi: 0u,
@@ -111,14 +113,14 @@ fn create<T: copy>() -> t<T> {
                 vec::to_mut(
                     vec::from_elem(initial_capacity, none)))
     };
-    repr as t::<T>
+    repr as Deque::<T>
 }
 
 #[cfg(test)]
 mod tests {
     #[test]
     fn test_simple() {
-        let d: deque::t<int> = deque::create::<int>();
+        let d: deque::Deque<int> = deque::create::<int>();
         assert (d.size() == 0u);
         d.add_front(17);
         d.add_front(42);
@@ -162,7 +164,7 @@ mod tests {
     }
 
     fn test_boxes(a: @int, b: @int, c: @int, d: @int) {
-        let deq: deque::t<@int> = deque::create::<@int>();
+        let deq: deque::Deque<@int> = deque::create::<@int>();
         assert (deq.size() == 0u);
         deq.add_front(a);
         deq.add_front(b);
@@ -191,12 +193,12 @@ mod tests {
         assert (deq.get(3) == d);
     }
 
-    type eqfn<T> = fn@(T, T) -> bool;
+    type EqFn<T> = fn@(T, T) -> bool;
 
     fn test_parameterized<T: copy owned>(
-        e: eqfn<T>, a: T, b: T, c: T, d: T) {
+        e: EqFn<T>, a: T, b: T, c: T, d: T) {
 
-        let deq: deque::t<T> = deque::create::<T>();
+        let deq: deque::Deque<T> = deque::create::<T>();
         assert (deq.size() == 0u);
         deq.add_front(a);
         deq.add_front(b);
@@ -231,7 +233,7 @@ mod tests {
         onepar(int), twopar(int, int), threepar(int, int, int),
     }
 
-    type reccy = {x: int, y: int, t: taggy};
+    type RecCy = {x: int, y: int, t: taggy};
 
     #[test]
     fn test() {
@@ -271,40 +273,40 @@ mod tests {
               }
             }
         }
-        fn reccyeq(a: reccy, b: reccy) -> bool {
+        fn reccyeq(a: RecCy, b: RecCy) -> bool {
             return a.x == b.x && a.y == b.y && taggyeq(a.t, b.t);
         }
         debug!{"*** test boxes"};
         test_boxes(@5, @72, @64, @175);
         debug!{"*** end test boxes"};
         debug!{"test parameterized: int"};
-        let eq1: eqfn<int> = inteq;
+        let eq1: EqFn<int> = inteq;
         test_parameterized::<int>(eq1, 5, 72, 64, 175);
         debug!{"*** test parameterized: @int"};
-        let eq2: eqfn<@int> = intboxeq;
+        let eq2: EqFn<@int> = intboxeq;
         test_parameterized::<@int>(eq2, @5, @72, @64, @175);
         debug!{"*** end test parameterized @int"};
         debug!{"test parameterized: taggy"};
-        let eq3: eqfn<taggy> = taggyeq;
+        let eq3: EqFn<taggy> = taggyeq;
         test_parameterized::<taggy>(eq3, one(1), two(1, 2), three(1, 2, 3),
                                     two(17, 42));
 
         debug!{"*** test parameterized: taggypar<int>"};
-        let eq4: eqfn<taggypar<int>> = |x,y| taggypareq::<int>(x, y);
+        let eq4: EqFn<taggypar<int>> = |x,y| taggypareq::<int>(x, y);
         test_parameterized::<taggypar<int>>(eq4, onepar::<int>(1),
                                             twopar::<int>(1, 2),
                                             threepar::<int>(1, 2, 3),
                                             twopar::<int>(17, 42));
         debug!{"*** end test parameterized: taggypar::<int>"};
 
-        debug!{"*** test parameterized: reccy"};
-        let reccy1: reccy = {x: 1, y: 2, t: one(1)};
-        let reccy2: reccy = {x: 345, y: 2, t: two(1, 2)};
-        let reccy3: reccy = {x: 1, y: 777, t: three(1, 2, 3)};
-        let reccy4: reccy = {x: 19, y: 252, t: two(17, 42)};
-        let eq5: eqfn<reccy> = reccyeq;
-        test_parameterized::<reccy>(eq5, reccy1, reccy2, reccy3, reccy4);
-        debug!{"*** end test parameterized: reccy"};
+        debug!{"*** test parameterized: RecCy"};
+        let reccy1: RecCy = {x: 1, y: 2, t: one(1)};
+        let reccy2: RecCy = {x: 345, y: 2, t: two(1, 2)};
+        let reccy3: RecCy = {x: 1, y: 777, t: three(1, 2, 3)};
+        let reccy4: RecCy = {x: 19, y: 252, t: two(17, 42)};
+        let eq5: EqFn<RecCy> = reccyeq;
+        test_parameterized::<RecCy>(eq5, reccy1, reccy2, reccy3, reccy4);
+        debug!{"*** end test parameterized: RecCy"};
         debug!{"*** done"};
     }
 }
