@@ -1,30 +1,31 @@
 // Dynamic arenas.
+#[warn(non_camel_case_types)];
 
-export arena, arena_with_size;
+export Arena, arena_with_size;
 
 import list;
 import list::{list, cons, nil};
 import unsafe::reinterpret_cast;
 
-type chunk = {data: ~[u8], mut fill: uint};
+type Chunk = {data: ~[u8], mut fill: uint};
 
-type arena_ = {mut chunks: @list<@chunk>};
+type ArenaType = {mut chunks: @list<@Chunk>};
 
-enum arena {
-    arena_(arena_)
+enum Arena {
+    ArenaType(ArenaType)
 }
 
-fn chunk(size: uint) -> @chunk {
+fn chunk(size: uint) -> @Chunk {
     let mut v = ~[];
     vec::reserve(v, size);
     @{ data: v, mut fill: 0u }
 }
 
-fn arena_with_size(initial_size: uint) -> arena {
-    return arena_({mut chunks: @cons(chunk(initial_size), @nil)});
+fn arena_with_size(initial_size: uint) -> Arena {
+    return ArenaType({mut chunks: @cons(chunk(initial_size), @nil)});
 }
 
-fn arena() -> arena {
+fn arena() -> Arena {
     arena_with_size(32u)
 }
 
@@ -33,7 +34,7 @@ extern mod rusti {
     fn move_val_init<T>(&dst: T, -src: T);
 }
 
-impl &arena {
+impl &Arena {
     fn alloc_grow(n_bytes: uint, align: uint) -> *() {
         // Allocate a new chunk.
         let mut head = list::head(self.chunks);
