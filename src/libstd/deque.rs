@@ -18,7 +18,7 @@ trait Deque<T> {
 
 // FIXME (#2343) eventually, a proper datatype plus an exported impl would
 // be preferrable.
-fn create<T: copy>() -> t<T> {
+fn create<T: copy>() -> Deque<T> {
     type Cell<T> = option<T>;
 
     let initial_capacity: uint = 32u; // 2^5
