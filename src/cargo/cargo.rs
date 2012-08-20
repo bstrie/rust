@@ -74,7 +74,7 @@ type options = {
 
 enum mode { system_mode, user_mode, local_mode }
 
-fn opts() -> ~[getopts::opt] {
+fn opts() -> ~[getopts::Opt] {
     ~[optflag(~"g"), optflag(~"G"), optflag(~"test"),
      optflag(~"h"), optflag(~"help")]
 }
