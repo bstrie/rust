@@ -1,3 +1,5 @@
+#[deny(non_camel_case_types)];
+
 // Rust JSON serialization library
 // Copyright (c) 2011 Google Inc.
 
@@ -10,45 +12,45 @@ import map;
 import map::hashmap;
 import map::map;
 
-export json;
-export error;
+export Json;
+export Error;
 export to_writer;
 export to_str;
 export from_reader;
 export from_str;
 export eq;
-export to_json;
+export ToJson;
 
-export num;
-export string;
-export boolean;
-export list;
-export dict;
-export null;
+export Num;
+export String;
+export Boolean;
+export List;
+export Dict;
+export Null;
 
 /// Represents a json value
-enum json {
-    num(float),
-    string(@~str),
-    boolean(bool),
-    list(@~[json]),
-    dict(map::hashmap<~str, json>),
-    null,
+enum Json {
+    Num(float),
+    String(@~str),
+    Boolean(bool),
+    List(@~[Json]),
+    Dict(map::hashmap<~str, Json>),
+    Null,
 }
 
-type error = {
+type Error = {
     line: uint,
     col: uint,
     msg: @~str,
 };
 
 /// Serializes a json value into a io::writer
-fn to_writer(wr: io::Writer, j: json) {
+fn to_writer(wr: io::Writer, j: Json) {
     match j {
-      num(n) => wr.write_str(float::to_str(n, 6u)),
-      string(s) => wr.write_str(escape_str(*s)),
-      boolean(b) => wr.write_str(if b { ~"true" } else { ~"false" }),
-      list(v) => {
+      Num(n) => wr.write_str(float::to_str(n, 6u)),
+      String(s) => wr.write_str(escape_str(*s)),
+      Boolean(b) => wr.write_str(if b { ~"true" } else { ~"false" }),
+      List(v) => {
         wr.write_char('[');
         let mut first = true;
         for (*v).each |item| {
@@ -60,7 +62,7 @@ fn to_writer(wr: io::Writer, j: json) {
         };
         wr.write_char(']');
       }
-      dict(d) => {
+      Dict(d) => {
         if d.size() == 0u {
             wr.write_str(~"{}");
             return;
@@ -79,7 +81,7 @@ fn to_writer(wr: io::Writer, j: json) {
         };
         wr.write_str(~" }");
       }
-      null => wr.write_str(~"null")
+      Null => wr.write_str(~"null")
     }
 }
 
@@ -104,22 +106,22 @@ fn escape_str(s: ~str) -> ~str {
 }
 
 /// Serializes a json value into a string
-fn to_str(j: json) -> ~str {
+fn to_str(j: Json) -> ~str {
     io::with_str_writer(|wr| to_writer(wr, j))
 }
 
-type parser_ = {
+type Parser_ = {
     rdr: io::Reader,
     mut ch: char,
     mut line: uint,
     mut col: uint,
 };
 
-enum parser {
-    parser_(parser_)
+enum Parser {
+    Parser_(Parser_)
 }
 
-impl parser {
+impl Parser {
     fn eof() -> bool { self.ch == -1 as char }
 
     fn bump() {
@@ -138,11 +140,11 @@ impl parser {
         self.ch
     }
 
-    fn error<T>(+msg: ~str) -> result<T, error> {
+    fn error<T>(+msg: ~str) -> result<T, Error> {
         err({ line: self.line, col: self.col, msg: @msg })
     }
 
-    fn parse() -> result<json, error> {
+    fn parse() -> result<Json, Error> {
         match self.parse_value() {
           ok(value) => {
             // Skip trailing whitespaces.
@@ -158,18 +160,18 @@ impl parser {
         }
     }
 
-    fn parse_value() -> result<json, error> {
+    fn parse_value() -> result<Json, Error> {
         self.parse_whitespace();
 
         if self.eof() { return self.error(~"EOF while parsing value"); }
 
         match self.ch {
-          'n' => self.parse_ident(~"ull", null),
-          't' => self.parse_ident(~"rue", boolean(true)),
-          'f' => self.parse_ident(~"alse", boolean(false)),
+          'n' => self.parse_ident(~"ull", Null),
+          't' => self.parse_ident(~"rue", Boolean(true)),
+          'f' => self.parse_ident(~"alse", Boolean(false)),
           '0' to '9' | '-' => self.parse_number(),
           '"' => match self.parse_str() {
-            ok(s) => ok(string(s)),
+            ok(s) => ok(String(s)),
             err(e) => err(e)
           },
           '[' => self.parse_list(),
@@ -182,7 +184,7 @@ impl parser {
         while char::is_whitespace(self.ch) { self.bump(); }
     }
 
-    fn parse_ident(ident: ~str, value: json) -> result<json, error> {
+    fn parse_ident(ident: ~str, value: Json) -> result<Json, Error> {
         if str::all(ident, |c| c == self.next_char()) {
             self.bump();
             ok(value)
@@ -191,7 +193,7 @@ impl parser {
         }
     }
 
-    fn parse_number() -> result<json, error> {
+    fn parse_number() -> result<Json, Error> {
         let mut neg = 1f;
 
         if self.ch == '-' {
@@ -218,10 +220,10 @@ impl parser {
             }
         }
 
-        ok(num(neg * res))
+        ok(Num(neg * res))
     }
 
-    fn parse_integer() -> result<float, error> {
+    fn parse_integer() -> result<float, Error> {
         let mut res = 0f;
 
         match self.ch {
@@ -253,7 +255,7 @@ impl parser {
         ok(res)
     }
 
-    fn parse_decimal(res: float) -> result<float, error> {
+    fn parse_decimal(res: float) -> result<float, Error> {
         self.bump();
 
         // Make sure a digit follows the decimal place.
@@ -279,7 +281,7 @@ impl parser {
         ok(res)
     }
 
-    fn parse_exponent(res: float) -> result<float, error> {
+    fn parse_exponent(res: float) -> result<float, Error> {
         self.bump();
 
         let mut res = res;
@@ -320,7 +322,7 @@ impl parser {
         ok(res)
     }
 
-    fn parse_str() -> result<@~str, error> {
+    fn parse_str() -> result<@~str, Error> {
         let mut escape = false;
         let mut res = ~"";
 
@@ -376,7 +378,7 @@ impl parser {
         self.error(~"EOF while parsing string")
     }
 
-    fn parse_list() -> result<json, error> {
+    fn parse_list() -> result<Json, Error> {
         self.bump();
         self.parse_whitespace();
 
@@ -384,7 +386,7 @@ impl parser {
 
         if self.ch == ']' {
             self.bump();
-            return ok(list(@values));
+            return ok(List(@values));
         }
 
         loop {
@@ -400,13 +402,13 @@ impl parser {
 
             match self.ch {
               ',' => self.bump(),
-              ']' => { self.bump(); return ok(list(@values)); }
+              ']' => { self.bump(); return ok(List(@values)); }
               _ => return self.error(~"expected `,` or `]`")
             }
         };
     }
 
-    fn parse_object() -> result<json, error> {
+    fn parse_object() -> result<Json, Error> {
         self.bump();
         self.parse_whitespace();
 
@@ -414,7 +416,7 @@ impl parser {
 
         if self.ch == '}' {
           self.bump();
-          return ok(dict(values));
+          return ok(Dict(values));
         }
 
         while !self.eof() {
@@ -445,7 +447,7 @@ impl parser {
 
             match self.ch {
               ',' => self.bump(),
-              '}' => { self.bump(); return ok(dict(values)); }
+              '}' => { self.bump(); return ok(Dict(values)); }
               _ => {
                   if self.eof() { break; }
                   return self.error(~"expected `,` or `}`");
@@ -458,8 +460,8 @@ impl parser {
 }
 
 /// Deserializes a json value from an io::reader
-fn from_reader(rdr: io::Reader) -> result<json, error> {
-    let parser = parser_({
+fn from_reader(rdr: io::Reader) -> result<Json, Error> {
+    let parser = Parser_({
         rdr: rdr,
         mut ch: rdr.read_char(),
         mut line: 1u,
@@ -470,18 +472,18 @@ fn from_reader(rdr: io::Reader) -> result<json, error> {
 }
 
 /// Deserializes a json value from a string
-fn from_str(s: ~str) -> result<json, error> {
+fn from_str(s: ~str) -> result<Json, Error> {
     io::with_str_reader(s, from_reader)
 }
 
 /// Test if two json values are equal
-fn eq(value0: json, value1: json) -> bool {
+fn eq(value0: Json, value1: Json) -> bool {
     match (value0, value1) {
-      (num(f0), num(f1)) => f0 == f1,
-      (string(s0), string(s1)) => s0 == s1,
-      (boolean(b0), boolean(b1)) => b0 == b1,
-      (list(l0), list(l1)) => vec::all2(*l0, *l1, eq),
-      (dict(d0), dict(d1)) => {
+      (Num(f0), Num(f1)) => f0 == f1,
+      (String(s0), String(s1)) => s0 == s1,
+      (Boolean(b0), Boolean(b1)) => b0 == b1,
+      (List(l0), List(l1)) => vec::all2(*l0, *l1, eq),
+      (Dict(d0), Dict(d1)) => {
           if d0.size() == d1.size() {
               let mut equal = true;
               for d0.each |k, v0| {
@@ -495,138 +497,138 @@ fn eq(value0: json, value1: json) -> bool {
               false
           }
       }
-      (null, null) => true,
+      (Null, Null) => true,
       _ => false
     }
 }
 
-trait to_json { fn to_json() -> json; }
+trait ToJson { fn to_json() -> Json; }
 
-impl json: to_json {
-    fn to_json() -> json { self }
+impl Json: ToJson {
+    fn to_json() -> Json { self }
 }
 
-impl @json: to_json {
-    fn to_json() -> json { *self }
+impl @Json: ToJson {
+    fn to_json() -> Json { *self }
 }
 
-impl int: to_json {
-    fn to_json() -> json { num(self as float) }
+impl int: ToJson {
+    fn to_json() -> Json { Num(self as float) }
 }
 
-impl i8: to_json {
-    fn to_json() -> json { num(self as float) }
+impl i8: ToJson {
+    fn to_json() -> Json { Num(self as float) }
 }
 
-impl i16: to_json {
-    fn to_json() -> json { num(self as float) }
+impl i16: ToJson {
+    fn to_json() -> Json { Num(self as float) }
 }
 
-impl i32: to_json {
-    fn to_json() -> json { num(self as float) }
+impl i32: ToJson {
+    fn to_json() -> Json { Num(self as float) }
 }
 
-impl i64: to_json {
-    fn to_json() -> json { num(self as float) }
+impl i64: ToJson {
+    fn to_json() -> Json { Num(self as float) }
 }
 
-impl uint: to_json {
-    fn to_json() -> json { num(self as float) }
+impl uint: ToJson {
+    fn to_json() -> Json { Num(self as float) }
 }
 
-impl u8: to_json {
-    fn to_json() -> json { num(self as float) }
+impl u8: ToJson {
+    fn to_json() -> Json { Num(self as float) }
 }
 
-impl u16: to_json {
-    fn to_json() -> json { num(self as float) }
+impl u16: ToJson {
+    fn to_json() -> Json { Num(self as float) }
 }
 
-impl u32: to_json {
-    fn to_json() -> json { num(self as float) }
+impl u32: ToJson {
+    fn to_json() -> Json { Num(self as float) }
 }
 
-impl u64: to_json {
-    fn to_json() -> json { num(self as float) }
+impl u64: ToJson {
+    fn to_json() -> Json { Num(self as float) }
 }
 
-impl float: to_json {
-    fn to_json() -> json { num(self) }
+impl float: ToJson {
+    fn to_json() -> Json { Num(self) }
 }
 
-impl f32: to_json {
-    fn to_json() -> json { num(self as float) }
+impl f32: ToJson {
+    fn to_json() -> Json { Num(self as float) }
 }
 
-impl f64: to_json {
-    fn to_json() -> json { num(self as float) }
+impl f64: ToJson {
+    fn to_json() -> Json { Num(self as float) }
 }
 
-impl (): to_json {
-    fn to_json() -> json { null }
+impl (): ToJson {
+    fn to_json() -> Json { Null }
 }
 
-impl bool: to_json {
-    fn to_json() -> json { boolean(self) }
+impl bool: ToJson {
+    fn to_json() -> Json { Boolean(self) }
 }
 
-impl ~str: to_json {
-    fn to_json() -> json { string(@copy self) }
+impl ~str: ToJson {
+    fn to_json() -> Json { String(@copy self) }
 }
 
-impl @~str: to_json {
-    fn to_json() -> json { string(self) }
+impl @~str: ToJson {
+    fn to_json() -> Json { String(self) }
 }
 
-impl <A: to_json, B: to_json> (A, B): to_json {
-    fn to_json() -> json {
+impl <A: ToJson, B: ToJson> (A, B): ToJson {
+    fn to_json() -> Json {
         match self {
           (a, b) => {
-            list(@~[a.to_json(), b.to_json()])
+            List(@~[a.to_json(), b.to_json()])
           }
         }
     }
 }
 
-impl <A: to_json, B: to_json, C: to_json> (A, B, C): to_json {
+impl <A: ToJson, B: ToJson, C: ToJson> (A, B, C): ToJson {
 
-    fn to_json() -> json {
+    fn to_json() -> Json {
         match self {
           (a, b, c) => {
-            list(@~[a.to_json(), b.to_json(), c.to_json()])
+            List(@~[a.to_json(), b.to_json(), c.to_json()])
           }
         }
     }
 }
 
-impl <A: to_json> ~[A]: to_json {
-    fn to_json() -> json { list(@self.map(|elt| elt.to_json())) }
+impl <A: ToJson> ~[A]: ToJson {
+    fn to_json() -> Json { List(@self.map(|elt| elt.to_json())) }
 }
 
-impl <A: to_json copy> hashmap<~str, A>: to_json {
-    fn to_json() -> json {
+impl <A: ToJson copy> hashmap<~str, A>: ToJson {
+    fn to_json() -> Json {
         let d = map::str_hash();
         for self.each() |key, value| {
             d.insert(copy key, value.to_json());
         }
-        dict(d)
+        Dict(d)
     }
 }
 
-impl <A: to_json> option<A>: to_json {
-    fn to_json() -> json {
+impl <A: ToJson> option<A>: ToJson {
+    fn to_json() -> Json {
         match self {
-          none => null,
+          none => Null,
           some(value) => value.to_json()
         }
     }
 }
 
-impl json: to_str::ToStr {
+impl Json: to_str::ToStr {
     fn to_str() -> ~str { to_str(self) }
 }
 
-impl error: to_str::ToStr {
+impl Error: to_str::ToStr {
     fn to_str() -> ~str {
         fmt!{"%u:%u: %s", self.line, self.col, *self.msg}
     }
@@ -634,7 +636,7 @@ impl error: to_str::ToStr {
 
 #[cfg(test)]
 mod tests {
-    fn mk_dict(items: ~[(~str, json)]) -> json {
+    fn mk_dict(items: ~[(~str, Json)]) -> Json {
         let d = map::str_hash();
 
         do vec::iter(items) |item| {
@@ -642,55 +644,55 @@ mod tests {
             d.insert(key, value);
         };
 
-        dict(d)
+        Dict(d)
     }
 
     #[test]
     fn test_write_null() {
-        assert to_str(null) == ~"null";
+        assert to_str(Null) == ~"null";
     }
 
     #[test]
     fn test_write_num() {
-        assert to_str(num(3f)) == ~"3";
-        assert to_str(num(3.1f)) == ~"3.1";
-        assert to_str(num(-1.5f)) == ~"-1.5";
-        assert to_str(num(0.5f)) == ~"0.5";
+        assert to_str(Num(3f)) == ~"3";
+        assert to_str(Num(3.1f)) == ~"3.1";
+        assert to_str(Num(-1.5f)) == ~"-1.5";
+        assert to_str(Num(0.5f)) == ~"0.5";
     }
 
     #[test]
     fn test_write_str() {
-        assert to_str(string(@~"")) == ~"\"\"";
-        assert to_str(string(@~"foo")) == ~"\"foo\"";
+        assert to_str(String(@~"")) == ~"\"\"";
+        assert to_str(String(@~"foo")) == ~"\"foo\"";
     }
 
     #[test]
     fn test_write_bool() {
-        assert to_str(boolean(true)) == ~"true";
-        assert to_str(boolean(false)) == ~"false";
+        assert to_str(Boolean(true)) == ~"true";
+        assert to_str(Boolean(false)) == ~"false";
     }
 
     #[test]
     fn test_write_list() {
-        assert to_str(list(@~[])) == ~"[]";
-        assert to_str(list(@~[boolean(true)])) == ~"[true]";
-        assert to_str(list(@~[
-            boolean(false),
-            null,
-            list(@~[string(@~"foo\nbar"), num(3.5f)])
+        assert to_str(List(@~[])) == ~"[]";
+        assert to_str(List(@~[Boolean(true)])) == ~"[true]";
+        assert to_str(List(@~[
+            Boolean(false),
+            Null,
+            List(@~[String(@~"foo\nbar"), Num(3.5f)])
         ])) == ~"[false, null, [\"foo\\nbar\", 3.5]]";
     }
 
     #[test]
     fn test_write_dict() {
         assert to_str(mk_dict(~[])) == ~"{}";
-        assert to_str(mk_dict(~[(~"a", boolean(true))]))
+        assert to_str(mk_dict(~[(~"a", Boolean(true))]))
             == ~"{ \"a\": true }";
         assert to_str(mk_dict(~[
-            (~"a", boolean(true)),
-            (~"b", list(@~[
-                mk_dict(~[(~"c", string(@~"\x0c\r"))]),
-                mk_dict(~[(~"d", string(@~""))])
+            (~"a", Boolean(true)),
+            (~"b", List(@~[
+                mk_dict(~[(~"c", String(@~"\x0c\r"))]),
+                mk_dict(~[(~"d", String(@~""))])
             ]))
         ])) ==
             ~"{ " +
@@ -735,12 +737,12 @@ mod tests {
         assert from_str(~"faz") ==
             err({line: 1u, col: 3u, msg: @~"invalid syntax"});
 
-        assert from_str(~"null") == ok(null);
-        assert from_str(~"true") == ok(boolean(true));
-        assert from_str(~"false") == ok(boolean(false));
-        assert from_str(~" null ") == ok(null);
-        assert from_str(~" true ") == ok(boolean(true));
-        assert from_str(~" false ") == ok(boolean(false));
+        assert from_str(~"null") == ok(Null);
+        assert from_str(~"true") == ok(Boolean(true));
+        assert from_str(~"false") == ok(Boolean(false));
+        assert from_str(~" null ") == ok(Null);
+        assert from_str(~" true ") == ok(Boolean(true));
+        assert from_str(~" false ") == ok(Boolean(false));
     }
 
     #[test]
@@ -761,14 +763,14 @@ mod tests {
         assert from_str(~"1e+") ==
             err({line: 1u, col: 4u, msg: @~"invalid number"});
 
-        assert from_str(~"3") == ok(num(3f));
-        assert from_str(~"3.1") == ok(num(3.1f));
-        assert from_str(~"-1.2") == ok(num(-1.2f));
-        assert from_str(~"0.4") == ok(num(0.4f));
-        assert from_str(~"0.4e5") == ok(num(0.4e5f));
-        assert from_str(~"0.4e+15") == ok(num(0.4e15f));
-        assert from_str(~"0.4e-01") == ok(num(0.4e-01f));
-        assert from_str(~" 3 ") == ok(num(3f));
+        assert from_str(~"3") == ok(Num(3f));
+        assert from_str(~"3.1") == ok(Num(3.1f));
+        assert from_str(~"-1.2") == ok(Num(-1.2f));
+        assert from_str(~"0.4") == ok(Num(0.4f));
+        assert from_str(~"0.4e5") == ok(Num(0.4e5f));
+        assert from_str(~"0.4e+15") == ok(Num(0.4e15f));
+        assert from_str(~"0.4e-01") == ok(Num(0.4e-01f));
+        assert from_str(~" 3 ") == ok(Num(3f));
     }
 
     #[test]
@@ -778,14 +780,14 @@ mod tests {
         assert from_str(~"\"lol") ==
             err({line: 1u, col: 5u, msg: @~"EOF while parsing string"});
 
-        assert from_str(~"\"\"") == ok(string(@~""));
-        assert from_str(~"\"foo\"") == ok(string(@~"foo"));
-        assert from_str(~"\"\\\"\"") == ok(string(@~"\""));
-        assert from_str(~"\"\\b\"") == ok(string(@~"\x08"));
-        assert from_str(~"\"\\n\"") == ok(string(@~"\n"));
-        assert from_str(~"\"\\r\"") == ok(string(@~"\r"));
-        assert from_str(~"\"\\t\"") == ok(string(@~"\t"));
-        assert from_str(~" \"foo\" ") == ok(string(@~"foo"));
+        assert from_str(~"\"\"") == ok(String(@~""));
+        assert from_str(~"\"foo\"") == ok(String(@~"foo"));
+        assert from_str(~"\"\\\"\"") == ok(String(@~"\""));
+        assert from_str(~"\"\\b\"") == ok(String(@~"\x08"));
+        assert from_str(~"\"\\n\"") == ok(String(@~"\n"));
+        assert from_str(~"\"\\r\"") == ok(String(@~"\r"));
+        assert from_str(~"\"\\t\"") == ok(String(@~"\t"));
+        assert from_str(~" \"foo\" ") == ok(String(@~"foo"));
     }
 
     #[test]
@@ -801,15 +803,15 @@ mod tests {
         assert from_str(~"[6 7]") ==
             err({line: 1u, col: 4u, msg: @~"expected `,` or `]`"});
 
-        assert from_str(~"[]") == ok(list(@~[]));
-        assert from_str(~"[ ]") == ok(list(@~[]));
-        assert from_str(~"[true]") == ok(list(@~[boolean(true)]));
-        assert from_str(~"[ false ]") == ok(list(@~[boolean(false)]));
-        assert from_str(~"[null]") == ok(list(@~[null]));
-        assert from_str(~"[3, 1]") == ok(list(@~[num(3f), num(1f)]));
-        assert from_str(~"\n[3, 2]\n") == ok(list(@~[num(3f), num(2f)]));
+        assert from_str(~"[]") == ok(List(@~[]));
+        assert from_str(~"[ ]") == ok(List(@~[]));
+        assert from_str(~"[true]") == ok(List(@~[Boolean(true)]));
+        assert from_str(~"[ false ]") == ok(List(@~[Boolean(false)]));
+        assert from_str(~"[null]") == ok(List(@~[Null]));
+        assert from_str(~"[3, 1]") == ok(List(@~[Num(3f), Num(1f)]));
+        assert from_str(~"\n[3, 2]\n") == ok(List(@~[Num(3f), Num(2f)]));
         assert from_str(~"[2, [4, 1]]") ==
-               ok(list(@~[num(2f), list(@~[num(4f), num(1f)])]));
+               ok(List(@~[Num(2f), List(@~[Num(4f), Num(1f)])]));
     }
 
     #[test]
@@ -840,20 +842,20 @@ mod tests {
 
         assert eq(result::get(from_str(~"{}")), mk_dict(~[]));
         assert eq(result::get(from_str(~"{\"a\": 3}")),
-                  mk_dict(~[(~"a", num(3.0f))]));
+                  mk_dict(~[(~"a", Num(3.0f))]));
 
         assert eq(result::get(from_str(~"{ \"a\": null, \"b\" : true }")),
                   mk_dict(~[
-                      (~"a", null),
-                      (~"b", boolean(true))]));
+                      (~"a", Null),
+                      (~"b", Boolean(true))]));
         assert eq(result::get(from_str(~"\n{ \"a\": null, \"b\" : true }\n")),
                   mk_dict(~[
-                      (~"a", null),
-                      (~"b", boolean(true))]));
+                      (~"a", Null),
+                      (~"b", Boolean(true))]));
         assert eq(result::get(from_str(~"{\"a\" : 1.0 ,\"b\": [ true ]}")),
                   mk_dict(~[
-                      (~"a", num(1.0)),
-                      (~"b", list(@~[boolean(true)]))
+                      (~"a", Num(1.0)),
+                      (~"b", List(@~[Boolean(true)]))
                   ]));
         assert eq(result::get(from_str(
                       ~"{" +
@@ -865,12 +867,12 @@ mod tests {
                           ~"]" +
                       ~"}")),
                   mk_dict(~[
-                      (~"a", num(1.0f)),
-                      (~"b", list(@~[
-                          boolean(true),
-                          string(@~"foo\nbar"),
+                      (~"a", Num(1.0f)),
+                      (~"b", List(@~[
+                          Boolean(true),
+                          String(@~"foo\nbar"),
                           mk_dict(~[
-                              (~"c", mk_dict(~[(~"d", null)]))
+                              (~"c", mk_dict(~[(~"d", Null)]))
                           ])
                       ]))
                   ]));
