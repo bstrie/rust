@@ -66,7 +66,7 @@ fn rt_malloc(td: *c_char, size: uintptr_t) -> *c_char {
     	}
     	else {
 		let comm_memory_watcher_chan = memory_watcher::get_memory_watcher_Chan();
-		comm_memory_watcher_chan.send(memory_watcher::ReportAllocation(task::get_task(),size,td));
+		//comm_memory_watcher_chan.send(memory_watcher::ReportAllocation(task::get_task(),size,td));
     	}
     }
     
