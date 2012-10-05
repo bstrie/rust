@@ -58,14 +58,14 @@ fn rt_exchange_free(ptr: *c_char) {
 
 #[rt(malloc)]
 fn rt_malloc(td: *c_char, size: uintptr_t) -> *c_char {
-    
     let memory_watcher_initialized = rustrt::rust_global_memory_watcher_chan_ptr();
     unsafe {
     	if(*memory_watcher_initialized == 0) {
     	}
     	else {
 		let comm_memory_watcher_chan = memory_watcher::get_memory_watcher_Chan();
-		//comm_memory_watcher_chan.send(memory_watcher::ReportAllocation(task::get_task(),size,td));
+		let allocation_address = rustrt::rust_upcall_malloc(td, size);
+		comm_memory_watcher_chan.send(memory_watcher::ReportAllocation(task::get_task(), size,td, allocation_address));
     	}
     }
     
@@ -77,6 +77,15 @@ fn rt_malloc(td: *c_char, size: uintptr_t) -> *c_char {
 // problem occurs, call exit instead.
 #[rt(free)]
 fn rt_free(ptr: *c_char) {
+	let memory_watcher_initialized = rustrt::rust_global_memory_watcher_chan_ptr();
+    	unsafe {
+    		if(*memory_watcher_initialized == 0) {
+    		}
+    		else {
+			let comm_memory_watcher_chan = memory_watcher::get_memory_watcher_Chan();
+			comm_memory_watcher_chan.send(memory_watcher::ReportDeallocation(task::get_task(), ptr));
+    		}
+    	}
     rustrt::rust_upcall_free(ptr);
 }
 

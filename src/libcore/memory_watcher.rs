@@ -13,23 +13,21 @@ extern mod rustrt {
 }
 
 pub enum Msg {
-        pub ReportAllocation(Task, libc::uintptr_t, *libc::c_char, *libc::c_char)
+        pub ReportAllocation(Task, libc::uintptr_t, *libc::c_char, *libc::c_char),
+	pub ReportDeallocation(Task, *libc::c_char),
+	StopMemoryWatcher()
 }
 
 type MemoryWatcherKey = (int, libc::uintptr_t, libc::uintptr_t);
 
 pub fn global_memory_watcher_spawner(msg_po: comm::Port<Msg>)
-{
-	let msg_received = msg_po.recv();
-	let (task_enum_received,size_allocated,td_value,address_allocation) = match msg_received {
-  		ReportAllocation(t,s,c,a) => (t,s,c,a)
-	};
-	
+{	
 	let mut hm_index:linear::LinearMap<int, @mut linear::LinearMap<libc::uintptr_t, MemoryWatcherKey>> = linear::LinearMap();
 	
 	loop { 
 		match msg_po.recv() { 
-			ReportAllocation(t, s, c,a) => {
+			ReportAllocation(t, s, c, a) => {
+				println("In message condition");
 				let Metrics_value:MemoryWatcherKey = (*(t), s, (c as libc::uintptr_t));
 				let test1:int = (*t);
 				let val1 = hm_index.find(&test1);
@@ -43,19 +41,32 @@ pub fn global_memory_watcher_spawner(msg_po: comm::Port<Msg>)
 					hm_task.insert((a as libc::uintptr_t), Metrics_value);
 					hm_index.insert(*(t), hm_task);
 					}
-				}					
+				}				
 			}
-		}  
+			ReportDeallocation(t, a) => {
+				println("In deallocation condition");
+				let val1 = hm_index.find(&*(t));
+				match val1 {
+					Some(T) => {
+						let hm_task_deallocate:@mut linear::LinearMap<libc::uintptr_t, MemoryWatcherKey> = T;
+						let val2 = hm_task_deallocate.remove(&(a as libc::uintptr_t));
+						if(val2 == true) {
+							println("Value removed");
+						}
+						else {
+							println("Value not removed");
+						}
+
+					}
+					None => {
+					}
+				}		
+			}
+			StopMemoryWatcher() => {
+				break;
+			}
+		}
 	}
-
-	let remote_task_id = *(task_enum_received);
-
-  	 	
-
-  	let current_task_enum = task::get_task();
-  	let current_task_id = *(current_task_enum); 	
-  	println(#fmt("Remote task id %d", remote_task_id));
-  	println(#fmt("Size value is %d", size_allocated as int));
 	
 	do spawn {
 		println("Hello");
@@ -85,6 +96,14 @@ fn memory_watcher_start() {
 	println("Memory watcher started");
 }
 
+fn memory_watcher_stop() {
+	let comm_memory_watcher_chan = get_memory_watcher_Chan();
+
+	comm_memory_watcher_chan.send(StopMemoryWatcher);
+	println("Memory watcher stopped");
+}
+	
+
 #[test]
 fn test_simple() {
 let comm_memory_watcher_chan = get_memory_watcher_Chan();
@@ -95,4 +114,5 @@ let tid = *(tid_recieve);
 println(#fmt("current task id %d",tid));
 memory_watcher_start();
 let box = @0;
+memory_watcher_stop();
 }
