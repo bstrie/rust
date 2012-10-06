@@ -59,17 +59,18 @@ fn rt_exchange_free(ptr: *c_char) {
 #[rt(malloc)]
 fn rt_malloc(td: *c_char, size: uintptr_t) -> *c_char {
     let memory_watcher_initialized = rustrt::rust_global_memory_watcher_chan_ptr();
+    let allocation_address = rustrt::rust_upcall_malloc(td, size);
     unsafe {
     	if(*memory_watcher_initialized == 0) {
     	}
     	else {
 		let comm_memory_watcher_chan = memory_watcher::get_memory_watcher_Chan();
-		let allocation_address = rustrt::rust_upcall_malloc(td, size);
+		
 		comm_memory_watcher_chan.send(memory_watcher::ReportAllocation(task::get_task(), size,td, allocation_address));
     	}
     }
     
-    return rustrt::rust_upcall_malloc(td, size);
+    return allocation_address;
 }
 
 // NB: Calls to free CANNOT be allowed to fail, as throwing an exception from
