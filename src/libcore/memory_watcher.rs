@@ -29,7 +29,8 @@ pub enum Msg {
         pub ReportAllocation(Task, libc::uintptr_t, *libc::c_char, *libc::c_char),
 	pub ReportDeallocation(Task, *libc::c_char),
 	StopMemoryWatcher(),
-	pub PrintMetrics()
+	pub PrintMetrics(),
+	pub ProcessMetrics(fn~(MetricsValue))
 }
 
 type MemoryWatcherKey = (int, libc::uintptr_t, libc::uintptr_t);
@@ -90,6 +91,15 @@ pub fn global_memory_watcher_spawner(msg_po: comm::Port<Msg>)
 					}
 				}
 			}
+			ProcessMetrics(func_process) => {
+				for hm_index.each_value |value| {
+					let hm_task_printvalues = copy **value;
+					for hm_task_printvalues.each_value |map_value| {
+						let mut temp2 = map_value;
+						func_process(*map_value);	
+					}
+				}
+			}
 		}
 	}
 	
@@ -133,7 +143,13 @@ fn print_metrics() {
 
 	comm_memory_watcher_chan.send(PrintMetrics);
 }
-	
+
+fn print_test1(metrics_test1:MetricsValue)
+{
+
+	println(#fmt("Print test1 %d",metrics_test1.task_id));
+	println(#fmt("Print test1 %x",(metrics_test1.size) as uint));
+}
 
 #[test]
 fn test_simple() {
@@ -144,5 +160,6 @@ println(#fmt("current task id %d",tid));
 memory_watcher_start();
 let box = @0;
 print_metrics();
+comm_memory_watcher_chan.send(ProcessMetrics(print_test1));
 memory_watcher_stop();
 }
