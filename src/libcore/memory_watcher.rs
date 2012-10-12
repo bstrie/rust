@@ -30,7 +30,9 @@ pub enum Msg {
 	pub ReportDeallocation(Task, *libc::c_char),
 	StopMemoryWatcher(),
 	pub PrintMetrics(),
-	pub ProcessMetrics(fn~(MetricsValue))
+	pub ProcessMetrics(fn~(MetricsValue)),
+	pub ProcessMetricsOfTask(fn~(MetricsValue), int),
+	pub TestAllocationAddress(int, *libc::c_char)
 }
 
 type MemoryWatcherKey = (int, libc::uintptr_t, libc::uintptr_t);
@@ -39,10 +41,10 @@ pub fn global_memory_watcher_spawner(msg_po: comm::Port<Msg>)
 {	
 	let mut hm_index:linear::LinearMap<int, @mut linear::LinearMap<libc::uintptr_t, MetricsValue>> = linear::LinearMap();
 	
-	loop { 
+	loop {
 		match msg_po.recv() { 
 			ReportAllocation(t, s, c, a) => {
-				println("In message condition");
+				println(#fmt("%d %x",*(t),(s as uint)));
 				let Metrics_value = MetricsValue {task_id:*(t), size:s, td:c };
 				let test1:int = (*t);
 				let val1 = hm_index.find(&test1);
@@ -59,14 +61,14 @@ pub fn global_memory_watcher_spawner(msg_po: comm::Port<Msg>)
 				}				
 			}
 			ReportDeallocation(t, a) => {
-				println("In deallocation condition");
+				//println("In deallocation condition");
 				let val1 = hm_index.find(&*(t));
 				match val1 {
 					Some(T) => {
 						let hm_task_deallocate:@mut linear::LinearMap<libc::uintptr_t, MetricsValue> = T;
 						let val2 = hm_task_deallocate.remove(&(a as libc::uintptr_t));
 						if(val2 == true) {
-							println("Value removed");
+							//println("Value removed");
 						}
 						else {
 							println("Value not removed");
@@ -100,6 +102,41 @@ pub fn global_memory_watcher_spawner(msg_po: comm::Port<Msg>)
 					}
 				}
 			}
+			ProcessMetricsOfTask(func_process,task_id) => {
+				let val1 = hm_index.find(&task_id);
+				match val1 {
+					Some(T) => {
+						let mut hm_task_printvalues = copy *T;
+						for hm_task_printvalues.each_value |map_value| {
+							let mut temp2 = map_value;
+							func_process(*map_value);	
+						}
+					}
+					None => {
+						println("Task value not present in metrics");
+					}
+				}		
+			}
+			TestAllocationAddress(task_id, allocation_address) => {
+				let val1 = hm_index.find(&task_id);
+				match val1 {
+					Some(T) => {
+						let mut hm_task_searchvalues = copy *T;
+						let val2 = hm_task_searchvalues.find(&(allocation_address as libc::uintptr_t));
+						match val2 {
+							Some(T) => {
+								println(#fmt("Allocation address values found %x",(allocation_address as uint)));
+							}
+							None => {
+								println("Allocation address value not present in metrics");
+							}
+						}
+					}
+					None => {
+						println("Task value not present in metrics");
+					}
+				}
+			}						
 		}
 	}
 	
@@ -158,8 +195,20 @@ let tid_recieve = task::get_task();
 let tid = *(tid_recieve);
 println(#fmt("current task id %d",tid));
 memory_watcher_start();
+unsafe {
 let box = @0;
-print_metrics();
-comm_memory_watcher_chan.send(ProcessMetrics(print_test1));
+let addr: *libc::c_char = cast::reinterpret_cast(&box);
+//comm_memory_watcher_chan.send(TestAllocationAddress(tid, addr));
+}
+do spawn {
+	let tid_recieve_secondtask = task::get_task();
+	let tid_secondtask = *(tid_recieve_secondtask);
+	println(#fmt("Second task id %d",tid_secondtask));
+	let box1 = @0;
+	print_metrics();
+	comm_memory_watcher_chan.send(ProcessMetricsOfTask(print_test1, tid_secondtask));
+}
+//print_metrics();
+//comm_memory_watcher_chan.send(ProcessMetricsOfTask(print_test1, 4));
 memory_watcher_stop();
 }
