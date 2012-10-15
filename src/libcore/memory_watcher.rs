@@ -1,6 +1,5 @@
-use task::{spawn,Task};
+use task::{spawn,Task,spawn_listener};
 use io::println;
-use pipes::{stream,Port,Chan};
 use private::{chan_from_global_ptr, weaken_task};
 use comm::{Port, Chan, select2, listen};
 use task::TaskBuilder;
@@ -29,19 +28,18 @@ struct MetricsValue {
 pub enum Msg {
         pub ReportAllocation(Task, libc::uintptr_t, *libc::c_char, *libc::c_char),
 	pub ReportDeallocation(Task, *libc::c_char),
-	StopMemoryWatcher(),
-	pub PrintMetrics(),
-	pub ProcessMetrics(fn~(MetricsValue)),
-	pub ProcessMetricsOfTask(fn~(MetricsValue), int),
-	pub TestAllocationAddress(int, *libc::c_char)
+	priv StopMemoryWatcher,
+	PrintMetrics,
+	ProcessMetrics(fn~(MetricsValue)),
+	ProcessMetricsOfTask(fn~(MetricsValue), int),
+	TestAllocationAddress(int, *libc::c_char)
 }
 
-type MemoryWatcherKey = (int, libc::uintptr_t, libc::uintptr_t);
 
-pub fn global_memory_watcher_spawner(msg_po: comm::Port<Msg>)
+pub fn global_memory_watcher_spawner(msg_po: Port<Msg>)
 {	
 
-	let memory_watcher_po = do task::spawn_listener::<Msg> |memory_watcher_chan| {
+	let memory_watcher_po = do spawn_listener::<Msg> |memory_watcher_chan| {
 		let mut hm_index:linear::LinearMap<int, @mut linear::LinearMap<libc::uintptr_t, MetricsValue>> = linear::LinearMap();
 
 		loop {
@@ -81,10 +79,10 @@ pub fn global_memory_watcher_spawner(msg_po: comm::Port<Msg>)
 						}
 					}		
 				}
-				StopMemoryWatcher() => {
+				StopMemoryWatcher => {
 					break;
 				}
-				PrintMetrics() => {
+				PrintMetrics => {
 					for hm_index.each_value |value| {
 						let hm_task_printvalues = copy **value;
 						for hm_task_printvalues.each_value |map_value| {
@@ -146,36 +144,36 @@ pub fn global_memory_watcher_spawner(msg_po: comm::Port<Msg>)
 		do weaken_task |po| {
 			loop {
 				match comm::select2(msg_po, po) {
-					either::Left(ReportAllocation(t, s, c, a)) => {
+					Left(ReportAllocation(t, s, c, a)) => {
 						println("In parent report allocation");
 						memory_watcher_po.send(ReportAllocation(t,s,c,a));		
 					}
-					either::Left(ReportDeallocation(t, a)) => {
+					Left(ReportDeallocation(t, a)) => {
 						println("In parent report deallocation");
 						memory_watcher_po.send(ReportDeallocation(t, a));
 					}
-					either::Left(StopMemoryWatcher()) => {
+					Left(StopMemoryWatcher) => {
 						println("In parent StopMemoryWatcher");
 						memory_watcher_po.send(StopMemoryWatcher);
 						break;
 					}
-					either::Left(PrintMetrics()) => {
+					Left(PrintMetrics) => {
 						println("In parent print metrics");
 						memory_watcher_po.send(PrintMetrics);
 					}	
-					either::Left(ProcessMetrics(func_process)) => {
+					Left(ProcessMetrics(func_process)) => {
 						println("In parent process metrics");
 						memory_watcher_po.send(ProcessMetrics(func_process));
 					}
-					either::Left(ProcessMetricsOfTask(func_process,task_id)) => {
+					Left(ProcessMetricsOfTask(func_process,task_id)) => {
 						println("In parent process metrics of task");
 						memory_watcher_po.send(ProcessMetricsOfTask(func_process,task_id));
 					}
-					either::Left(TestAllocationAddress(task_id, allocation_address)) => {
+					Left(TestAllocationAddress(task_id, allocation_address)) => {
 						println("In parent test allocation address");
 						memory_watcher_po.send(TestAllocationAddress(task_id,allocation_address));
 					}
-					either::Right(_) => {
+					Right(_) => {
 						break;
 					}						
 				}
@@ -188,7 +186,7 @@ pub fn global_memory_watcher_spawner(msg_po: comm::Port<Msg>)
 	}
 }
 
-pub fn get_memory_watcher_Chan() -> comm::Chan<Msg> {
+pub fn get_memory_watcher_Chan() -> Chan<Msg> {
 
 	let global_memory_watcher_ptr = rustrt::rust_global_memory_watcher_chan_ptr();
 
