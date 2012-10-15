@@ -26,8 +26,8 @@ struct MetricsValue {
 }
 
 pub enum Msg {
-        pub ReportAllocation(Task, libc::uintptr_t, *libc::c_char, *libc::c_char),
-	pub ReportDeallocation(Task, *libc::c_char),
+        ReportAllocation(Task, libc::uintptr_t, *libc::c_char, *libc::c_char),
+	ReportDeallocation(Task, *libc::c_char),
 	priv StopMemoryWatcher,
 	PrintMetrics,
 	ProcessMetrics(fn~(MetricsValue)),
