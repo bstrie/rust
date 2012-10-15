@@ -842,6 +842,12 @@ rust_global_memory_watcher_chan_ptr() {
     return task->kernel->get_global_memory_watcher_chan();
 }
 
+extern "C" CDECL void
+rust_set_global_memory_watcher_chan_ptr_null() {
+    rust_task *task = rust_get_current_task();
+    task->kernel->set_global_memory_watcher_chan_null();
+}
+
 extern "C" void
 rust_task_inhibit_kill(rust_task *task) {
     task->inhibit_kill();

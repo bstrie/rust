@@ -159,6 +159,7 @@ public:
     uintptr_t* get_global_loop() { return &global_loop_chan; }
     uintptr_t* get_global_env_chan() { return &global_env_chan; }
     uintptr_t* get_global_memory_watcher_chan() { return &global_memory_watcher_chan; }
+    void set_global_memory_watcher_chan_null() { global_memory_watcher_chan = 0; }
 };
 
 template <typename T> struct kernel_owned {
