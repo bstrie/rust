@@ -321,6 +321,18 @@ impl<T: Eq> Option<T> : Eq {
     pure fn ne(other: &Option<T>) -> bool { !self.eq(other) }
 }
 
+impl<T: Copy Add<T,T>> Option<T> : Add<Option<T>, Option<T>> {
+    #[inline(always)]
+    pure fn add(other: &Option<T>) -> Option<T> {
+        match (self, *other) {
+            (None, None) => None,
+            (_, None) => self,
+            (None, _) => *other,
+            (Some(ref v1), Some(ref v2)) => Some(*v1 + *v2)
+        }
+    }
+}
+
 #[test]
 fn test_unwrap_ptr() {
     let x = ~0;
