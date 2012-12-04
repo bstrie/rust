@@ -2096,12 +2096,58 @@ impl ~str: Trimmable {
 
 #[cfg(notest)]
 pub mod traits {
-    impl ~str : Add<&str,~str> {
+// New way
+    trait OwnedStrRhs<S> {
+        pure fn add_to_owned_str(lhs: ~str) -> S;
+    }
+
+    //impl<S, R: OwnedStrRhs<S>> ~str : Add<R, S> {
+    impl<R: OwnedStrRhs<~str>> ~str : Add<R, ~str> {
         #[inline(always)]
-        pure fn add(rhs: & &self/str) -> ~str {
-            append(copy self, (*rhs))
+        pure fn add(rhs: &R) -> ~str {
+            rhs.add_to_owned_str(self)
         }
     }
+
+    impl &str : OwnedStrRhs<~str> {
+        #[inline(always)]
+        pure fn add_to_owned_str(lhs: ~str) -> ~str {
+            append(lhs, copy self)
+        }
+    }
+
+    impl ~str : OwnedStrRhs<~str> {
+        #[inline(always)]
+        pure fn add_to_owned_str(lhs: ~str) -> ~str {
+            append(lhs, self)
+        }
+    }
+
+    trait BorrowedStrRhs<S> {
+        pure fn add_to_borrowed_str(lhs: &str) -> S;
+    }
+
+    impl<R: BorrowedStrRhs<~str>> &str : Add<R, ~str> {
+        #[inline(always)]
+        pure fn add(rhs: &R) -> ~str {
+            rhs.add_to_borrowed_str(self)
+        }
+    }
+
+    impl &str : BorrowedStrRhs<~str> {
+        #[inline(always)]
+        pure fn add_to_borrowed_str(lhs: &str) -> ~str {
+            append(lhs.to_owned(), copy self)
+        }
+    }
+
+// Old way
+//    impl ~str : Add<&str,~str> {
+//        #[inline(always)]
+//        pure fn add(rhs: & &self/str) -> ~str {
+//            append(copy self, (*rhs))
+//        }
+//    }
 }
 
 #[cfg(test)]
