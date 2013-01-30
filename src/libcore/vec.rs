@@ -3148,7 +3148,7 @@ mod tests {
 
     #[test]
     fn reverse_and_reversed() {
-        let mut v: ~[mut int] = ~[10, 20];
+        let mut v: ~[int] = ~[10, 20];
         assert (v[0] == 10);
         assert (v[1] == 20);
         reverse(v);
@@ -3163,7 +3163,7 @@ mod tests {
 
         let v4 = reversed::<int>(~[]);
         assert (v4 == ~[]);
-        let mut v3: ~[mut int] = ~[];
+        let mut v3: ~[int] = ~[];
         reverse::<int>(v3);
     }
 
