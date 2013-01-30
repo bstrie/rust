@@ -50,7 +50,7 @@ const use_repr: uint = 1u;   /* Dependency on size/alignment/mode and
 const use_tydesc: uint = 2u; /* Takes the tydesc, or compares */
 
 type ctx = {ccx: @crate_ctxt,
-            uses: ~[mut type_uses]};
+            mut uses: ~[type_uses]};
 
 fn type_uses_for(ccx: @crate_ctxt, fn_id: def_id, n_tps: uint)
     -> ~[type_uses] {
