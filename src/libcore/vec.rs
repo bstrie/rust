@@ -279,7 +279,7 @@ pub pure fn view<T>(v: &r/[T], start: uint, end: uint) -> &r/[T] {
 }
 
 /// Return a slice that points into another slice.
-pub pure fn mut_view<T>(v: &r/[mut T], start: uint, end: uint) -> &r/[mut T] {
+pub pure fn mut_view<T>(v: &mut r/[T], start: uint, end: uint) -> &mut r/[T] {
     assert (start <= end);
     assert (end <= len(v));
     do as_mut_buf(v) |p, _len| {
