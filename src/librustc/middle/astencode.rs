@@ -118,7 +118,7 @@ pub fn decode_inlined_item(cdata: cstore::crate_metadata,
                            +path: ast_map::path,
                            par_doc: ebml::Doc)
                         -> Option<ast::inlined_item> {
-    let dcx = @{cdata: cdata, tcx: tcx, maps: maps};
+    let dcx = @{cdata: cdata, tcx: tcx, maps: copy maps};
     match par_doc.opt_child(c::tag_ast) {
       None => None,
       Some(ast_doc) => {

@@ -96,7 +96,7 @@ pub fn check_crate(tcx: ty::ctxt,
                    crate: @crate) {
     let ctx = {tcx: tcx,
                method_map: method_map,
-               last_use_map: last_use_map,
+               last_use_map: copy last_use_map,
                current_item: -1};
     let visit = visit::mk_vt(@visit::Visitor {
         visit_arm: check_arm,
@@ -104,7 +104,7 @@ pub fn check_crate(tcx: ty::ctxt,
         visit_fn: check_fn,
         visit_ty: check_ty,
         visit_item: fn@(i: @item, cx: ctx, v: visit::vt<ctx>) {
-            visit::visit_item(i, {current_item: i.id,.. cx}, v);
+            visit::visit_item(i, {current_item: i.id,.. copy cx}, v);
         },
         .. *visit::default_visitor()
     });

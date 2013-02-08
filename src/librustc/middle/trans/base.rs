@@ -3023,7 +3023,7 @@ pub fn trans_crate(sess: session::Session,
               type_short_names: ty::new_ty_hash(),
               all_llvm_symbols: HashMap(),
               tcx: tcx,
-              maps: maps,
+              maps: copy maps,
               stats: @mut Stats {
                 n_static_tydescs: 0u,
                 n_glues_created: 0u,
