@@ -265,6 +265,21 @@ $EndFeature, "
         }
 
         doc_comment! {
+            concat!("The smallest value that can be represented by this integer type.
+
+# Examples
+
+Basic usage:
+
+```
+", $Feature, "assert_eq!(", stringify!($SelfT), "::MIN, ", stringify!($Min), ");",
+$EndFeature, "
+```"),
+            #[unstable(feature = "assoc_int_consts", reason = "recently added", issue = "1")]
+            pub const MIN: Self = !0 ^ ((!0 as $UnsignedT) >> 1) as Self;
+        }
+
+        doc_comment! {
             concat!("Returns the largest value that can be represented by this integer type.
 
 # Examples
@@ -282,6 +297,21 @@ $EndFeature, "
             pub const fn max_value() -> Self {
                 !Self::min_value()
             }
+        }
+
+        doc_comment! {
+            concat!("The largest value that can be represented by this integer type.
+
+# Examples
+
+Basic usage:
+
+```
+", $Feature, "assert_eq!(", stringify!($SelfT), "::MAX, ", stringify!($Max), ");",
+$EndFeature, "
+```"),
+            #[unstable(feature = "assoc_int_consts", reason = "recently_added", issue = "1")]
+            pub const MAX: Self = !Self::MIN;
         }
 
         doc_comment! {
