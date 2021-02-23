@@ -591,3 +591,11 @@ mod sealed {
     #[unstable(feature = "sealed", issue = "none")]
     pub trait Sealed {}
 }
+
+#[stable(feature = "rust1", since = "1.0.0")]
+#[cfg_attr(
+    not(bootstrap),
+    rustc_deprecated(since = "1.0.0", reason = "pretty useless, imo", denied_by_edition = "2018")
+)]
+#[doc(hidden)]
+pub fn test_denied_by_edition() {}

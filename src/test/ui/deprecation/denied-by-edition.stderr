@@ -1,0 +1,10 @@
+error: use of deprecated unit struct `S`: name too short
+  --> $DIR/denied-by-edition.rs:14:13
+   |
+LL |     let _ = S;
+   |             ^
+   |
+   = note: `#[deny(denied_by_edition)]` on by default
+
+error: aborting due to previous error
+

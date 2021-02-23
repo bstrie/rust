@@ -8,9 +8,10 @@ use rustc_macros::HashStable_Generic;
 use rustc_session::parse::{feature_err, ParseSess};
 use rustc_session::Session;
 use rustc_span::hygiene::Transparency;
-use rustc_span::{symbol::sym, symbol::Symbol, Span};
+use rustc_span::{edition::Edition, symbol::sym, symbol::Symbol, Span};
 use std::fmt;
 use std::num::NonZeroU32;
+use std::str::FromStr;
 
 pub fn is_builtin_attr(attr: &Attribute) -> bool {
     attr.is_doc_comment() || attr.ident().filter(|ident| is_builtin_attr_name(ident.name)).is_some()
@@ -677,6 +678,9 @@ pub enum DeprKind {
         /// of the deprecated item in an expression.
         /// Currently unstable.
         suggestion: Option<Symbol>,
+        /// The edition, if any, in which use of this deprecated
+        /// item should emit a denial rather than a warning.
+        denied_by_edition: Option<Edition>,
     },
 }
 
@@ -729,6 +733,7 @@ where
         let mut since = None;
         let mut note = None;
         let mut suggestion = None;
+        let mut denied_by_edition = None;
         match &meta.kind {
             MetaItemKind::Word => {}
             MetaItemKind::NameValue(..) => note = meta.value_str(),
@@ -788,6 +793,13 @@ where
                                     continue 'outer;
                                 }
                             }
+                            sym::denied_by_edition
+                                if sess.check_name(attr, sym::rustc_deprecated) =>
+                            {
+                                if !get(mi, &mut denied_by_edition) {
+                                    continue 'outer;
+                                }
+                            }
                             _ => {
                                 handle_errors(
                                     &sess.parse_sess,
@@ -797,7 +809,7 @@ where
                                         if sess.check_name(attr, sym::deprecated) {
                                             &["since", "note"]
                                         } else {
-                                            &["since", "reason", "suggestion"]
+                                            &["since", "reason", "suggestion", "denied_by_edition"]
                                         },
                                     ),
                                 );
@@ -852,6 +864,14 @@ where
                 Some(n) => n,
             };
 
+            let denied_by_edition = match denied_by_edition {
+                None => None,
+                Some(e) => match Edition::from_str(&e.as_str()) {
+                    Err(_) => todo!(),
+                    Ok(edition) => Some(edition),
+                },
+            };
+
             // Whether the deprecation is currently active
             let now = match since {
                 None => false, // "TBD", therefore deprecated_in_future
@@ -863,7 +883,10 @@ where
                 }
             };
 
-            Some((DeprKind::RustcDeprecated { now, since, note, suggestion }, attr.span))
+            Some((
+                DeprKind::RustcDeprecated { now, since, note, suggestion, denied_by_edition },
+                attr.span,
+            ))
         };
 
         sess.mark_attr_used(&attr);

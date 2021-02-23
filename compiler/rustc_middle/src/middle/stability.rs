@@ -14,10 +14,13 @@ use rustc_hir::def::DefKind;
 use rustc_hir::def_id::{CrateNum, DefId, CRATE_DEF_INDEX};
 use rustc_hir::{self, HirId};
 use rustc_middle::ty::print::with_no_trimmed_paths;
-use rustc_session::lint::builtin::{DEPRECATED, DEPRECATED_IN_FUTURE, SOFT_UNSTABLE};
+use rustc_session::lint::builtin::{
+    DENIED_BY_EDITION, DEPRECATED, DEPRECATED_IN_FUTURE, SOFT_UNSTABLE,
+};
 use rustc_session::lint::{BuiltinLintDiagnostics, Lint, LintBuffer};
 use rustc_session::parse::feature_err_issue;
 use rustc_session::{DiagnosticMessageId, Session};
+use rustc_span::edition::Edition;
 use rustc_span::symbol::{sym, Symbol};
 use rustc_span::{MultiSpan, Span};
 
@@ -168,10 +171,18 @@ pub fn deprecation_message(depr: &DeprKind, kind: &str, path: &str) -> String {
     message
 }
 
-pub fn deprecation_lint(depr: &DeprKind) -> &'static Lint {
+pub fn deprecation_lint(depr: &DeprKind, curr_edition: Edition) -> &'static Lint {
     match depr {
         attr::RustcDeprecated { now: false, .. } => DEPRECATED_IN_FUTURE,
-        attr::Deprecated { .. } | attr::RustcDeprecated { now: true, .. } => DEPRECATED,
+        attr::Deprecated { .. }
+        | attr::RustcDeprecated { now: true, denied_by_edition: None, .. } => DEPRECATED,
+        attr::RustcDeprecated { now: true, denied_by_edition: Some(depr_edition), .. } => {
+            if curr_edition < *depr_edition {
+                DEPRECATED
+            } else {
+                DENIED_BY_EDITION
+            }
+        }
     }
 }
 
@@ -271,7 +282,7 @@ impl<'tcx> TyCtxt<'tcx> {
                     let path = &with_no_trimmed_paths(|| self.def_path_str(def_id));
                     let kind = self.def_kind(def_id).descr(def_id);
                     let message = deprecation_message(&depr_entry.attr, kind, path);
-                    let lint = deprecation_lint(&depr_entry.attr);
+                    let lint = deprecation_lint(&depr_entry.attr, self.sess.edition());
                     late_report_deprecation(
                         self,
                         &message,

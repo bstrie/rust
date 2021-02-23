@@ -2965,6 +2965,13 @@ declare_lint! {
     };
 }
 
+declare_lint! {
+    pub DENIED_BY_EDITION,
+    Deny,
+    "deprecated items whose use has been denied by an edition",
+    report_in_external_macro
+}
+
 declare_lint_pass! {
     /// Does nothing as a lint pass, but registers some `Lint`s
     /// that are used by other parts of the compiler.
@@ -3056,6 +3063,7 @@ declare_lint_pass! {
         SEMICOLON_IN_EXPRESSIONS_FROM_MACROS,
         DISJOINT_CAPTURE_DROP_REORDER,
         LEGACY_DERIVE_HELPERS,
+        DENIED_BY_EDITION,
     ]
 }
 

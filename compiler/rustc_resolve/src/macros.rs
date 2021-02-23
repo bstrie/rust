@@ -1090,7 +1090,7 @@ impl<'a> Resolver<'a> {
         if let Some(depr) = &ext.deprecation {
             let path = pprust::path_to_string(&path);
             let message = stability::deprecation_message(depr, "macro", &path);
-            let lint = stability::deprecation_lint(depr);
+            let lint = stability::deprecation_lint(depr, self.session.edition());
             stability::early_report_deprecation(
                 &mut self.lint_buffer,
                 &message,
